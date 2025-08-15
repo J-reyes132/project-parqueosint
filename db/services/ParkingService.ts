@@ -8,8 +8,17 @@ export class ParkingService {
     this.db = Database.getInstance();
   }
 
+  // Asegurar que la base de datos esté inicializada antes de usarla
+  private async ensureDbInitialized(): Promise<void> {
+    if (!this.db.isInitialized()) {
+      await this.db.init();
+    }
+  }
+
   async getAllParkings(): Promise<Parking[]> {
     try {
+      await this.ensureDbInitialized();
+      
       const query = `
         SELECT 
           id,
@@ -49,6 +58,8 @@ export class ParkingService {
 
   async getParkingById(parkingId: number): Promise<Parking | null> {
     try {
+      await this.ensureDbInitialized();
+      
       const query = `
         SELECT 
           id,
@@ -244,6 +255,8 @@ export class ParkingService {
     totalSpots: number 
   }> {
     try {
+      await this.ensureDbInitialized();
+      
       const query = `
         SELECT 
           COUNT(*) as totalParkings,
@@ -277,6 +290,8 @@ export class ParkingService {
 
   async getAvailableParkingsCount(): Promise<number> {
     try {
+      await this.ensureDbInitialized();
+      
       const result = await this.db.getFirst(
         'SELECT COUNT(*) as count FROM parkings WHERE available_spots > 0'
       );
@@ -289,6 +304,8 @@ export class ParkingService {
 
   async getTotalAvailableSpots(): Promise<number> {
     try {
+      await this.ensureDbInitialized();
+      
       const result = await this.db.getFirst(
         'SELECT SUM(available_spots) as total FROM parkings'
       );
@@ -302,6 +319,8 @@ export class ParkingService {
   // Método simplificado para decrementar espacios disponibles
   async decrementAvailableSpots(parkingId: number): Promise<boolean> {
     try {
+      await this.ensureDbInitialized();
+      
       console.log(`Decrementando espacios disponibles para parqueo ${parkingId}`);
       
       // Primero obtener los espacios actuales

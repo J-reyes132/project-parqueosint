@@ -8,6 +8,13 @@ export class AuthService {
     this.db = Database.getInstance();
   }
 
+  // Asegurar que la base de datos esté inicializada antes de usarla
+  private async ensureDbInitialized(): Promise<void> {
+    if (!this.db.isInitialized()) {
+      await this.db.init();
+    }
+  }
+
   // Simular hashing de contraseña (en producción usar bcrypt o similar)
   private hashPassword(password: string): string {
     return `hashed_${password}_${Date.now()}`;
@@ -22,6 +29,8 @@ export class AuthService {
 
   async login(credentials: LoginDTO): Promise<UserProfile | null> {
     try {
+      await this.ensureDbInitialized();
+      
       const query = `
         SELECT id, name, email, phone, password_hash, created_at
         FROM users 
@@ -88,6 +97,8 @@ export class AuthService {
 
   async register(userData: CreateUserDTO): Promise<UserProfile | null> {
     try {
+      await this.ensureDbInitialized();
+      
       // Verificar si el email ya existe
       const existingUser = await this.db.getFirst(
         'SELECT id FROM users WHERE email = ?',
@@ -137,6 +148,8 @@ export class AuthService {
 
   async getUserProfile(userId: number): Promise<UserProfile | null> {
     try {
+      await this.ensureDbInitialized();
+      
       const userQuery = `
         SELECT id, name, email, phone, created_at
         FROM users 
@@ -198,6 +211,8 @@ export class AuthService {
 
   async updateUserProfile(userId: number, updates: Partial<CreateUserDTO>): Promise<boolean> {
     try {
+      await this.ensureDbInitialized();
+      
       const fields = [];
       const values = [];
 

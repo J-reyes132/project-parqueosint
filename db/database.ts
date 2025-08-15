@@ -1,4 +1,6 @@
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
+import { WebDatabase } from './webDatabase';
 
 // Configuración de la base de datos
 const DATABASE_NAME = 'smartparking.db';
@@ -18,8 +20,15 @@ export interface DBRow {
 export class Database {
   private static instance: Database;
   private db: SQLite.SQLiteDatabase | null = null;
+  private webDb: WebDatabase | null = null;
+  private isWeb: boolean = false;
 
-  private constructor() {}
+  private constructor() {
+    this.isWeb = Platform.OS === 'web';
+    if (this.isWeb) {
+      this.webDb = WebDatabase.getInstance();
+    }
+  }
 
   public static getInstance(): Database {
     if (!Database.instance) {
@@ -28,8 +37,24 @@ export class Database {
     return Database.instance;
   }
 
+  public isInitialized(): boolean {
+    if (this.isWeb) {
+      return this.webDb?.isDbInitialized() ?? false;
+    }
+    return this.db !== null;
+  }
+
   public async init(): Promise<void> {
     try {
+      if (this.isWeb) {
+        if (!this.webDb) {
+          throw new Error('WebDatabase no disponible');
+        }
+        await this.webDb.init();
+        console.log('WebDatabase inicializada correctamente para plataforma web');
+        return;
+      }
+
       this.db = await SQLite.openDatabaseAsync(DATABASE_NAME);
       
       // Verificar si necesitamos recrear la base de datos
@@ -37,7 +62,7 @@ export class Database {
       
       await this.createTables();
       await this.seedData();
-      console.log('Base de datos inicializada correctamente');
+      console.log('SQLite Database inicializada correctamente para plataforma móvil');
     } catch (error) {
       console.error('Error al inicializar la base de datos:', error);
       throw error;
@@ -330,6 +355,11 @@ export class Database {
   }
 
   public async executeQuery(query: string, params?: any[]): Promise<DBResult> {
+    if (this.isWeb) {
+      if (!this.webDb) throw new Error('WebDatabase no inicializada');
+      return await this.webDb.executeQuery(query, params);
+    }
+    
     if (!this.db) throw new Error('Base de datos no inicializada');
     const result = await this.db.runAsync(query, params);
     return {
@@ -339,16 +369,33 @@ export class Database {
   }
 
   public async getAll(query: string, params?: any[]): Promise<DBRow[]> {
+    if (this.isWeb) {
+      if (!this.webDb) throw new Error('WebDatabase no inicializada');
+      return await this.webDb.getAll(query, params);
+    }
+    
     if (!this.db) throw new Error('Base de datos no inicializada');
     return await this.db.getAllAsync(query, params);
   }
 
   public async getFirst(query: string, params?: any[]): Promise<DBRow | null> {
+    if (this.isWeb) {
+      if (!this.webDb) throw new Error('WebDatabase no inicializada');
+      return await this.webDb.getFirst(query, params);
+    }
+    
     if (!this.db) throw new Error('Base de datos no inicializada');
     return await this.db.getFirstAsync(query, params);
   }
 
   public async close(): Promise<void> {
+    if (this.isWeb) {
+      if (this.webDb) {
+        await this.webDb.close();
+      }
+      return;
+    }
+    
     if (this.db) {
       await this.db.closeAsync();
       this.db = null;
@@ -358,11 +405,19 @@ export class Database {
   // Método público para forzar el reset de la base de datos
   public async resetDatabase(): Promise<void> {
     try {
+      if (this.isWeb) {
+        if (this.webDb) {
+          await this.webDb.resetDatabase();
+          console.log('WebDatabase reseteada correctamente');
+        }
+        return;
+      }
+      
       if (this.db) {
         await this.recreateDatabase();
         await this.createTables();
         await this.seedData();
-        console.log('Base de datos reseteada correctamente');
+        console.log('SQLite Database reseteada correctamente');
       }
     } catch (error) {
       console.error('Error al resetear la base de datos:', error);

@@ -33,16 +33,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const initializeDatabase = async () => {
     try {
+      setIsLoading(true);
       const db = Database.getInstance();
-      await db.init();
-      console.log('Base de datos inicializada en AuthContext');
+      
+      if (!db.isInitialized()) {
+        console.log('Inicializando base de datos en AuthContext...');
+        await db.init();
+        console.log('Base de datos inicializada correctamente en AuthContext');
+      } else {
+        console.log('Base de datos ya estaba inicializada');
+      }
       
       // En una app real, aquí verificarías si hay un token guardado
       // Por ahora, simplemente marcamos como no loading
       setIsLoading(false);
     } catch (error) {
-      console.error('Error inicializando base de datos:', error);
+      console.error('Error inicializando base de datos en AuthContext:', error);
       setIsLoading(false);
+      // En caso de error crítico, podrías mostrar una alerta aquí
     }
   };
 
